@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AuraSpace · Gestión de Salas de Coworking</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+  <script src="{{ url_for('static', filename='app.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+            <path d="M9 4v16"></path>
+            <path d="M9 12h12"></path>
+          </svg>
+        </div>
+        <div>
+          <div class="brand-title-row">
+            <span class="brand-name">AuraSpace</span>
+            <span class="brand-hours">08:00 – 21:00</span>
+          </div>
+          <p class="brand-subtitle">Gestión de salas de coworking</p>
+        </div>
+      </div>
+
+      <nav class="tabs" role="tablist" aria-label="Vistas principales">
+        <button
+          type="button"
+          id="tab-spaces"
+          class="tab-btn is-active"
+          data-view="spaces"
+          role="tab"
+          aria-selected="true"
+          aria-controls="view-spaces"
+        >
+          Espacios
+        </button>
+        <button
+          type="button"
+          id="tab-schedule"
+          class="tab-btn"
+          data-view="schedule"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-schedule"
+        >
+          Agenda Diaria
+        </button>
+        <button
+          type="button"
+          id="tab-bookings"
+          class="tab-btn"
+          data-view="bookings"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-bookings"
+        >
+          Reservas
+        </button>
+        <button
+          type="button"
+          id="tab-analytics"
+          class="tab-btn"
+          data-view="analytics"
+          role="tab"
+          aria-selected="false"
+          aria-controls="view-analytics"
+        >
+          Analítica
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <button type="button" id="btn-new-booking" class="btn btn-primary">
+          + Nueva Reserva
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Vista 1: Espacios -->
+    <section
+      id="view-spaces"
+      class="view-section"
+      role="tabpanel"
+      aria-labelledby="tab-spaces"
+    >
+      <div class="section-header">
+        <div>
+          <h1 class="section-title">Catálogo de Espacios</h1>
+          <p class="section-subtitle">
+            Consulta equipamiento, aforo, tarifas por hora y disponibilidad operativa de cada sala.
+          </p>
+        </div>
+        <button type="button" id="btn-new-space" class="btn btn-outline">
+          + Añadir Espacio
+        </button>
+      </div>
+
+      <div class="card filter-bar">
+        <div class="filter-group filter-grow">
+          <label for="spaces-filter-q" class="field-label">Buscar espacio</label>
+          <input
+            type="search"
+            id="spaces-filter-q"
+            class="input"
+            placeholder="Nombre, categoría o equipamiento..."
+            autocomplete="off"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="spaces-filter-category" class="field-label">Categoría</label>
+          <select id="spaces-filter-category" class="input">
+            <option value="">Todas las categorías</option>
+          </select>
+        </div>
+        <div class="filter-group filter-sm">
+          <label for="spaces-filter-capacity" class="field-label">Aforo mínimo</label>
+          <input
+            type="number"
+            id="spaces-filter-capacity"
+            class="input"
+            min="1"
+            step="1"
+            placeholder="Ej. 6"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="spaces-filter-active" class="field-label">Estado</label>
+          <select id="spaces-filter-active" class="input">
+            <option value="">Todas</option>
+            <option value="true">Solo activas</option>
+          </select>
+        </div>
+        <div class="filter-actions">
+          <button type="button" id="spaces-filter-reset" class="btn btn-ghost">
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-meta">
+        <span id="spaces-count-label" class="muted-text">Cargando espacios...</span>
+      </div>
+
+      <div id="spaces-grid" class="spaces-grid"></div>
+      <div id="spaces-empty" class="card empty-state" hidden>
+        <p class="empty-title">No se encontraron salas con esos filtros</p>
+        <p class="muted-text">Prueba a ampliar los criterios de búsqueda o limpiar los filtros.</p>
+      </div>
+    </section>
+
+    <!-- Vista 2: Agenda Diaria -->
+    <section
+      id="view-schedule"
+      class="view-section"
+      role="tabpanel"
+      aria-labelledby="tab-schedule"
+      hidden
+    >
+      <div class="section-header">
+        <div>
+          <h1 class="section-title">Agenda Diaria</h1>
+          <p class="section-subtitle">
+            Línea temporal de ocupación por sala en bloques de 30 minutos (08:00 – 21:00).
+          </p>
+        </div>
+        <div class="date-nav">
+          <button type="button" id="schedule-yesterday" class="btn btn-outline btn-sm">
+            Ayer
+          </button>
+          <button type="button" id="schedule-today" class="btn btn-outline btn-sm">
+            Hoy
+          </button>
+          <button type="button" id="schedule-tomorrow" class="btn btn-outline btn-sm">
+            Mañana
+          </button>
+          <input type="date" id="schedule-date" class="input input-date" aria-label="Fecha de la agenda" />
+        </div>
+      </div>
+
+      <div class="card legend-card">
+        <div class="legend-items">
+          <span class="legend-item">
+            <span class="swatch swatch-free"></span> Libre (clic para reservar)
+          </span>
+          <span class="legend-item">
+            <span class="badge badge-green">Confirmada</span>
+          </span>
+          <span class="legend-item">
+            <span class="badge badge-blue">Completada</span>
+          </span>
+          <span class="legend-item">
+            <span class="badge badge-amber">Sala inactiva</span>
+          </span>
+        </div>
+        <span id="schedule-summary-label" class="muted-text"></span>
+      </div>
+
+      <div class="card schedule-card">
+        <div class="schedule-scroll">
+          <div id="schedule-board" class="schedule-board"></div>
+        </div>
+      </div>
+      <div id="schedule-empty" class="card empty-state" hidden>
+        <p class="empty-title">No hay salas registradas</p>
+        <p class="muted-text">Añade una sala desde el catálogo para empezar a programar reservas.</p>
+      </div>
+    </section>
+
+    <!-- Vista 3: Reservas -->
+    <section
+      id="view-bookings"
+      class="view-section"
+      role="tabpanel"
+      aria-labelledby="tab-bookings"
+      hidden
+    >
+      <div class="section-header">
+        <div>
+          <h1 class="section-title">Gestión de Reservas</h1>
+          <p class="section-subtitle">
+            Filtra, edita horarios, actualiza estados y exporta informes a CSV compatibles con Excel.
+          </p>
+        </div>
+        <button type="button" id="btn-export-csv" class="btn btn-outline">
+          Exportar CSV
+        </button>
+      </div>
+
+      <div class="card filter-bar">
+        <div class="filter-group filter-grow">
+          <label for="bookings-filter-q" class="field-label">Buscar reserva</label>
+          <input
+            type="search"
+            id="bookings-filter-q"
+            class="input"
+            placeholder="Código, título, cliente, email o sala..."
+            autocomplete="off"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="bookings-filter-space" class="field-label">Sala</label>
+          <select id="bookings-filter-space" class="input">
+            <option value="">Todas las salas</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="bookings-filter-status" class="field-label">Estado</label>
+          <select id="bookings-filter-status" class="input">
+            <option value="">Todos</option>
+            <option value="confirmada">Confirmada</option>
+            <option value="completada">Completada</option>
+            <option value="cancelada">Cancelada</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="bookings-filter-date" class="field-label">Fecha</label>
+          <input type="date" id="bookings-filter-date" class="input" />
+        </div>
+        <div class="filter-actions">
+          <button type="button" id="bookings-filter-reset" class="btn btn-ghost">
+            Limpiar
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar-meta">
+        <span id="bookings-count-label" class="muted-text">Cargando reservas...</span>
+      </div>
+
+      <div class="card table-card">
+        <div class="table-responsive">
+          <table id="bookings-table" class="data-table">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Sala</th>
+                <th>Fecha y horario</th>
+                <th>Evento / Cliente</th>
+                <th>Asistentes</th>
+                <th>Importe</th>
+                <th>Estado</th>
+                <th class="col-actions">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-tbody"></tbody>
+          </table>
+        </div>
+        <div id="bookings-empty" class="empty-state" hidden>
+          <p class="empty-title">No hay reservas que coincidan con la búsqueda</p>
+          <p class="muted-text">Ajusta los filtros o crea una nueva reserva desde el botón superior.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vista 4: Analítica -->
+    <section
+      id="view-analytics"
+      class="view-section"
+      role="tabpanel"
+      aria-labelledby="tab-analytics"
+      hidden
+    >
+      <div class="section-header">
+        <div>
+          <h1 class="section-title">Analítica y Ocupación</h1>
+          <p class="section-subtitle">
+            Métricas operativas de ingresos, distribución por estados y demanda horaria.
+          </p>
+        </div>
+        <div class="date-nav">
+          <label for="analytics-date" class="field-label inline-label">Fecha de referencia</label>
+          <input type="date" id="analytics-date" class="input input-date" />
+          <button type="button" id="analytics-today" class="btn btn-ghost btn-sm">
+            Hoy
+          </button>
+        </div>
+      </div>
+
+      <div class="kpi-grid">
+        <article class="card kpi-card">
+          <span class="kpi-label">Ingresos totales (activas)</span>
+          <strong id="kpi-total-revenue" class="kpi-value">0,00 €</strong>
+          <p class="kpi-meta">
+            Día seleccionado:
+            <span id="kpi-target-revenue" class="kpi-highlight">0,00 €</span>
+          </p>
+        </article>
+
+        <article class="card kpi-card">
+          <span class="kpi-label">Ocupación de la jornada</span>
+          <strong id="kpi-occupancy-today" class="kpi-value">0%</strong>
+          <div class="progress-track" aria-hidden="true">
+            <div id="kpi-occupancy-bar" class="progress-fill" style="width: 0%;"></div>
+          </div>
+          <p id="kpi-hours-summary" class="kpi-meta">0 h reservadas en total</p>
+        </article>
+
+        <article class="card kpi-card">
+          <span class="kpi-label">Reservas confirmadas</span>
+          <strong id="kpi-count-confirmada" class="kpi-value">0</strong>
+          <p id="kpi-active-spaces" class="kpi-meta">0 salas operativas</p>
+        </article>
+
+        <article class="card kpi-card">
+          <span class="kpi-label">Completadas y canceladas</span>
+          <strong id="kpi-total-bookings" class="kpi-value">0</strong>
+          <div class="status-pill-row">
+            <span class="badge badge-blue">
+              Completadas: <strong id="kpi-count-completada">0</strong>
+            </span>
+            <span class="badge badge-red">
+              Canceladas: <strong id="kpi-count-cancelada">0</strong>
+            </span>
+          </div>
+        </article>
+      </div>
+
+      <div class="analytics-grid">
+        <article class="card panel-card">
+          <div class="panel-header">
+            <h2 class="panel-title">Ingresos por espacio (€)</h2>
+            <span class="muted-text">Reservas confirmadas y completadas</span>
+          </div>
+          <div id="analytics-by-space" class="svg-chart-wrap"></div>
+        </article>
+
+        <article class="card panel-card">
+          <div class="panel-header">
+            <h2 class="panel-title">Ocupación por franja horaria</h2>
+            <span class="muted-text">Porcentaje de salas ocupadas (08:00 – 20:00)</span>
+          </div>
+          <div id="analytics-by-hour" class="svg-chart-wrap"></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <!-- Modal: Nueva / Editar Reserva -->
+  <div
+    id="booking-modal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="booking-modal-title"
+    hidden
+  >
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h2 id="booking-modal-title" class="modal-title">Nueva Reserva</h2>
+          <span id="booking-modal-ref" class="modal-subtitle" hidden></span>
+        </div>
+        <button
+          type="button"
+          id="booking-modal-close"
+          class="icon-btn"
+          aria-label="Cerrar modal de reserva"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form id="booking-form" class="modal-body" novalidate>
+        <div id="booking-form-error" class="form-alert" role="alert" hidden></div>
+        <input type="hidden" id="booking-id" />
+
+        <div class="form-grid">
+          <div class="form-field">
+            <label for="booking-space" class="field-label">Sala *</label>
+            <select id="booking-space" class="input" required></select>
+          </div>
+
+          <div class="form-field">
+            <label for="booking-date" class="field-label">Fecha *</label>
+            <input type="date" id="booking-date" class="input" required />
+          </div>
+
+          <div class="form-field">
+            <label for="booking-start" class="field-label">Hora de inicio *</label>
+            <select id="booking-start" class="input" required>
+              <option value="08:00">08:00</option>
+              <option value="08:30">08:30</option>
+              <option value="09:00" selected>09:00</option>
+              <option value="09:30">09:30</option>
+              <option value="10:00">10:00</option>
+              <option value="10:30">10:30</option>
+              <option value="11:00">11:00</option>
+              <option value="11:30">11:30</option>
+              <option value="12:00">12:00</option>
+              <option value="12:30">12:30</option>
+              <option value="13:00">13:00</option>
+              <option value="13:30">13:30</option>
+              <option value="14:00">14:00</option>
+              <option value="14:30">14:30</option>
+              <option value="15:00">15:00</option>
+              <option value="15:30">15:30</option>
+              <option value="16:00">16:00</option>
+              <option value="16:30">16:30</option>
+              <option value="17:00">17:00</option>
+              <option value="17:30">17:30</option>
+              <option value="18:00">18:00</option>
+              <option value="18:30">18:30</option>
+              <option value="19:00">19:00</option>
+              <option value="19:30">19:30</option>
+              <option value="20:00">20:00</option>
+              <option value="20:30">20:30</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="booking-end" class="field-label">Hora de fin *</label>
+            <select id="booking-end" class="input" required>
+              <option value="08:30">08:30</option>
+              <option value="09:00">09:00</option>
+              <option value="09:30">09:30</option>
+              <option value="10:00" selected>10:00</option>
+              <option value="10:30">10:30</option>
+              <option value="11:00">11:00</option>
+              <option value="11:30">11:30</option>
+              <option value="12:00">12:00</option>
+              <option value="12:30">12:30</option>
+              <option value="13:00">13:00</option>
+              <option value="13:30">13:30</option>
+              <option value="14:00">14:00</option>
+              <option value="14:30">14:30</option>
+              <option value="15:00">15:00</option>
+              <option value="15:30">15:30</option>
+              <option value="16:00">16:00</option>
+              <option value="16:30">16:30</option>
+              <option value="17:00">17:00</option>
+              <option value="17:30">17:30</option>
+              <option value="18:00">18:00</option>
+              <option value="18:30">18:30</option>
+              <option value="19:00">19:00</option>
+              <option value="19:30">19:30</option>
+              <option value="20:00">20:00</option>
+              <option value="20:30">20:30</option>
+              <option value="21:00">21:00</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Visualizador de los 26 bloques de 30 minutos -->
+        <div class="availability-panel">
+          <div class="availability-header">
+            <div>
+              <span class="availability-title">Bloques horarios (08:00 – 21:00 · 30 min)</span>
+              <span id="availability-summary" class="muted-text">Selecciona sala y fecha</span>
+            </div>
+            <div class="availability-legend">
+              <span class="legend-item"><span class="swatch swatch-free"></span> Libre</span>
+              <span class="legend-item"><span class="swatch swatch-selected"></span> Selección</span>
+              <span class="legend-item"><span class="swatch swatch-occupied"></span> Ocupado</span>
+            </div>
+          </div>
+          <div id="availability-slots" class="slots-grid" aria-live="polite"></div>
+        </div>
+
+        <div class="form-grid">
+          <div class="form-field form-span-2">
+            <label for="booking-title" class="field-label">Título de la reunión o evento *</label>
+            <input
+              type="text"
+              id="booking-title"
+              class="input"
+              placeholder="Ej. Comité semanal de producto"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="booking-customer-name" class="field-label">Nombre del responsable *</label>
+            <input
+              type="text"
+              id="booking-customer-name"
+              class="input"
+              placeholder="Ej. Laura Martín"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="booking-customer-email" class="field-label">Correo electrónico *</label>
+            <input
+              type="email"
+              id="booking-customer-email"
+              class="input"
+              placeholder="nombre@empresa.es"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="booking-attendees" class="field-label">Asistentes *</label>
+            <input
+              type="number"
+              id="booking-attendees"
+              class="input"
+              min="1"
+              step="1"
+              value="2"
+              required
+            />
+            <span id="booking-capacity-hint" class="field-hint"></span>
+          </div>
+
+          <div class="form-field">
+            <label for="booking-notes" class="field-label">Notas operativas</label>
+            <input
+              type="text"
+              id="booking-notes"
+              class="input"
+              placeholder="Necesidades de proyector, café, acceso..."
+            />
+          </div>
+        </div>
+
+        <div class="price-preview">
+          <div class="price-metric">
+            <span class="muted-text">Duración</span>
+            <strong id="booking-duration-preview">1,0 h</strong>
+          </div>
+          <div class="price-metric">
+            <span class="muted-text">Tarifa sala</span>
+            <strong id="booking-rate-preview">0,00 €/h</strong>
+          </div>
+          <div class="price-metric price-total">
+            <span class="muted-text">Importe estimado</span>
+            <strong id="booking-price-preview">0,00 €</strong>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="booking-modal-cancel" class="btn btn-ghost">
+            Cancelar
+          </button>
+          <button type="submit" id="booking-submit-btn" class="btn btn-primary">
+            Confirmar Reserva
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: Añadir Espacio -->
+  <div
+    id="space-modal"
+    class="modal-backdrop"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="space-modal-title"
+    hidden
+  >
+    <div class="modal">
+      <div class="modal-header">
+        <div>
+          <h2 id="space-modal-title" class="modal-title">Añadir Nuevo Espacio</h2>
+          <p class="modal-subtitle">Configura el aforo, tarifa por hora y equipamiento disponible.</p>
+        </div>
+        <button
+          type="button"
+          id="space-modal-close"
+          class="icon-btn"
+          aria-label="Cerrar modal de espacio"
+        >
+          ✕
+        </button>
+      </div>
+
+      <form id="space-form" class="modal-body" novalidate>
+        <div id="space-form-error" class="form-alert" role="alert" hidden></div>
+
+        <div class="form-grid">
+          <div class="form-field form-span-2">
+            <label for="space-name" class="field-label">Nombre de la sala *</label>
+            <input
+              type="text"
+              id="space-name"
+              class="input"
+              placeholder="Ej. Sala Ático"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="space-category" class="field-label">Categoría *</label>
+            <input
+              type="text"
+              id="space-category"
+              class="input"
+              list="space-category-suggestions"
+              placeholder="Sala de reuniones"
+              required
+            />
+            <datalist id="space-category-suggestions">
+              <option value="Sala de reuniones"></option>
+              <option value="Cabina individual"></option>
+              <option value="Oficina privada"></option>
+              <option value="Auditorio"></option>
+              <option value="Zona creativa"></option>
+            </datalist>
+          </div>
+
+          <div class="form-field">
+            <label for="space-floor" class="field-label">Planta / Ubicación *</label>
+            <input
+              type="text"
+              id="space-floor"
+              class="input"
+              placeholder="Ej. Planta 2"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="space-capacity" class="field-label">Aforo máximo *</label>
+            <input
+              type="number"
+              id="space-capacity"
+              class="input"
+              min="1"
+              step="1"
+              placeholder="8"
+              required
+            />
+          </div>
+
+          <div class="form-field">
+            <label for="space-hourly-rate" class="field-label">Tarifa por hora (€) *</label>
+            <input
+              type="number"
+              id="space-hourly-rate"
+              class="input"
+              min="1"
+              step="0.5"
+              placeholder="35.00"
+              required
+            />
+          </div>
+
+          <div class="form-field form-span-2">
+            <label for="space-equipment" class="field-label">Equipamiento (separado por comas)</label>
+            <input
+              type="text"
+              id="space-equipment"
+              class="input"
+              placeholder="Pantalla 4K, Pizarra magnética, Videoconferencia, Wi-Fi 6"
+            />
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" id="space-modal-cancel" class="btn btn-ghost">
+            Cancelar
+          </button>
+          <button type="submit" id="space-submit-btn" class="btn btn-primary">
+            Guardar Espacio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Contenedor de notificaciones Toast -->
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>
