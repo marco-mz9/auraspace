@@ -14,3 +14,10 @@ __pycache__/
 Thumbs.db
 .vscode/
 .idea/
+
+# Cobertura, reportes y evidencias de pruebas
+.coverage
+.coverage.*
+htmlcov/
+reports/
+evidencias/

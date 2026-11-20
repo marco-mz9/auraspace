@@ -1,0 +1,24 @@
+[run]
+branch = True
+source =
+    models
+    database
+    repositories
+    services
+    app
+omit =
+    tests/*
+    scripts/*
+    */__pycache__/*
+
+[report]
+show_missing = True
+precision = 1
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+
+[html]
+directory = reports/htmlcov
+title = Cobertura de código - AuraSpace

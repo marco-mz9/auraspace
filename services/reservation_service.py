@@ -587,7 +587,7 @@ class ReservationService:
                 existing.status == "cancelada"
                 and normalized_status != "cancelada"
             ):
-                if normalized_status == "confirmada" and not space.is_active:
+                if not space.is_active:
                     raise ValidationError(
                         f"No se puede reactivar la reserva porque la sala '{space.name}' está inactiva."
                     )
@@ -661,18 +661,30 @@ class ReservationService:
                     occupying = booking_item
                     break
 
+            is_available = space.is_active and occupying is None
+            slot_title = (
+                occupying["title"]
+                if occupying
+                else (None if space.is_active else "Sala en mantenimiento")
+            )
+            slot_status = (
+                occupying["status"]
+                if occupying
+                else (None if space.is_active else "mantenimiento")
+            )
+
             slots.append(
                 {
                     "start_time": self._minutes_to_hhmm(slot_start_min),
                     "end_time": self._minutes_to_hhmm(slot_end_min),
-                    "available": occupying is None,
-                    "occupied": occupying is not None,
+                    "available": is_available,
+                    "occupied": not is_available,
                     "booking_id": occupying["id"] if occupying else None,
                     "reference_code": (
                         occupying["reference_code"] if occupying else None
                     ),
-                    "title": occupying["title"] if occupying else None,
-                    "status": occupying["status"] if occupying else None,
+                    "title": slot_title,
+                    "status": slot_status,
                 }
             )
 
@@ -769,6 +781,9 @@ class ReservationService:
             hour: {"bookings_count": 0, "today_count": 0}
             for hour in range(8, 21)
         }
+        hour_active_spaces: dict[int, set[int]] = {
+            hour: set() for hour in range(8, 21)
+        }
 
         for booking in bookings:
             status = str(booking["status"])
@@ -785,20 +800,22 @@ class ReservationService:
             price = float(booking["total_price"])
             duration = float(booking["duration_hours"])
             is_target_day = booking["booking_date"] == ref_date
+            space_entry = space_stats.get(space_id)
+            is_active_space = bool(space_entry and space_entry["is_active"])
 
             total_revenue += price
             total_hours += duration
             if is_target_day:
                 target_date_revenue += price
-                today_hours += duration
+                if is_active_space:
+                    today_hours += duration
 
-            if space_id in space_stats:
-                entry = space_stats[space_id]
-                entry["bookings_count"] += 1
-                entry["total_hours"] += duration
-                entry["revenue"] += price
+            if space_entry is not None:
+                space_entry["bookings_count"] += 1
+                space_entry["total_hours"] += duration
+                space_entry["revenue"] += price
                 if is_target_day:
-                    entry["today_hours"] += duration
+                    space_entry["today_hours"] += duration
 
             start_min = self._hhmm_to_minutes(str(booking["start_time"]))
             end_min = self._hhmm_to_minutes(str(booking["end_time"]))
@@ -807,13 +824,21 @@ class ReservationService:
                 hour_end = (hour + 1) * 60
                 if start_min < hour_end and end_min > hour_start:
                     hour_buckets[hour]["bookings_count"] += 1
-                    if is_target_day:
+                    if is_target_day and is_active_space:
                         hour_buckets[hour]["today_count"] += 1
+                        hour_active_spaces[hour].add(space_id)
 
         operating_hours = (self.CLOSE_MINUTES - self.OPEN_MINUTES) / 60
         active_spaces_count = sum(1 for s in spaces if s.is_active)
         occupancy_today_pct = (
-            round((today_hours / (active_spaces_count * operating_hours)) * 100, 1)
+            min(
+                100.0,
+                round(
+                    (today_hours / (active_spaces_count * operating_hours))
+                    * 100,
+                    1,
+                ),
+            )
             if active_spaces_count > 0
             else 0.0
         )
@@ -832,7 +857,14 @@ class ReservationService:
         for hour in range(8, 21):
             counts = hour_buckets[hour]
             hour_occupancy = (
-                round((counts["today_count"] / active_spaces_count) * 100, 1)
+                min(
+                    100.0,
+                    round(
+                        (len(hour_active_spaces[hour]) / active_spaces_count)
+                        * 100,
+                        1,
+                    ),
+                )
                 if active_spaces_count > 0
                 else 0.0
             )

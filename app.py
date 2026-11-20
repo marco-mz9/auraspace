@@ -132,10 +132,20 @@ def create_app(
         """Devuelve JSON 405 cuando el método HTTP no está permitido."""
         return jsonify({"error": "Método HTTP no permitido."}), 405
 
+    @app.errorhandler(500)
+    def handle_internal_server_error(_exc: Exception) -> tuple[Response, int]:
+        """Devuelve JSON 500 uniforme sin exponer detalles internos ni HTML."""
+        return jsonify({"error": "Error interno del servidor."}), 500
+
     @app.get("/")
     def index() -> str:
         """Sirve la página principal de la aplicación."""
         return render_template("index.html")
+
+    @app.get("/favicon.ico")
+    def favicon() -> Response:
+        """Sirve el icono local SVG para evitar errores 404 en navegadores."""
+        return app.send_static_file("favicon.svg")
 
     @app.get("/api/spaces")
     def list_spaces() -> tuple[Response, int]:
